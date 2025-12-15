@@ -50,3 +50,9 @@ After installation, verify:
 ```bash
 ollama --version
 
+```
+
+Execution
+
+Model tests are executed via run_tests.sh, which handles prompt iteration, logging, and output capture.
+
