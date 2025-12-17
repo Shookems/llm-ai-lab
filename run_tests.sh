@@ -1,29 +1,71 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+<<<<<<< HEAD
 MODEL="${MODEL:-mistral:7b}"
+=======
+# -----------------------
+# Config (override via env)
+# -----------------------
+MODEL="${MODEL:-mistral:7b}"
+
+# Default BASE_DIR is $HOME/ai-lab, but you can override it:
+#   BASE_DIR="$PWD" MODEL="llama3.1:8b" ./run_tests.sh
+>>>>>>> 258b748 (Stabilize test runner and add logs README)
 BASE_DIR="${BASE_DIR:-$HOME/ai-lab}"
 PROMPT_DIR="${PROMPT_DIR:-$BASE_DIR/prompts}"
 LOG_DIR="${LOG_DIR:-$BASE_DIR/logs}"
 
+<<<<<<< HEAD
 SCHEMA_VERSION="${SCHEMA_VERSION:-1.0}"
 PHASE="${PHASE:-phase1}"
 WORKFLOW_ID="${WORKFLOW_ID:-dry_run_v1}"
 WORKFLOW_VERSION="${WORKFLOW_VERSION:-1.0}"
 BATCH_ID="${BATCH_ID:-$(date -u +"%Y%m%dT%H%M%SZ")}"
 
+=======
+# Logging and metadata
+SCHEMA_VERSION="${SCHEMA_VERSION:-1.0}"
+PHASE="${PHASE:-phase1}"
+WORKFLOW_ID="${WORKFLOW_ID:-ad_hoc}"
+WORKFLOW_VERSION="${WORKFLOW_VERSION:-1.0}"
+BATCH_ID="${BATCH_ID:-$(date -u +"%Y%m%dT%H%M%SZ")}"
+
+# Evaluation controls (optional)
+# If you set EXPECT_EXACT="READY", then a run passes only if the trimmed output equals READY.
+# Otherwise, runs are marked "unscored" unless the command fails.
+EXPECT_EXACT="${EXPECT_EXACT:-}"
+
+>>>>>>> 258b748 (Stabilize test runner and add logs README)
 timestamp_file() { date +"%Y-%m-%d_%H-%M-%S"; }
 timestamp_utc()  { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
 
 mkdir -p "$LOG_DIR"
 JSONL_OUT="$LOG_DIR/runs.jsonl"
 
+# Grab metadata best-effort
 git_commit="$(git -C "$BASE_DIR" rev-parse HEAD 2>/dev/null || echo "")"
 ollama_version="$(ollama --version 2>/dev/null || echo "")"
 
-for prompt_file in "$PROMPT_DIR"/*.txt; do
-  [ -e "$prompt_file" ] || continue
+# Safety: ensure prompt directory exists
+if [[ ! -d "$PROMPT_DIR" ]]; then
+  echo "Prompt directory not found: $PROMPT_DIR"
+  echo "Set PROMPT_DIR or BASE_DIR correctly. Example:"
+  echo '  BASE_DIR="$PWD" MODEL="llama3.1:8b" ./run_tests.sh'
+  exit 1
+fi
 
+# Expand prompts list safely
+shopt -s nullglob
+prompt_files=("$PROMPT_DIR"/*.txt)
+shopt -u nullglob
+
+if [[ ${#prompt_files[@]} -eq 0 ]]; then
+  echo "No prompt files found in: $PROMPT_DIR"
+  exit 0
+fi
+
+for prompt_file in "${prompt_files[@]}"; do
   base="$(basename "$prompt_file" .txt)"
   run_id="${base}_$(timestamp_file)"
   out="$LOG_DIR/${base}_$(timestamp_file).log"
@@ -51,6 +93,10 @@ print(time.time_ns())
 PY
 )"
 
+<<<<<<< HEAD
+=======
+  # Run the model and capture stdout
+>>>>>>> 258b748 (Stabilize test runner and add logs README)
   set +e
   response="$(ollama run "$MODEL" < "$prompt_file")"
   rc=$?
@@ -75,22 +121,42 @@ PY
     echo "=== END ==="
   } | tee -a "$out" >/dev/null
 
+<<<<<<< HEAD
   # Evaluation rule for dry_run_v1: pass only if output trims to READY
+=======
+  # Evaluation
+  status="unscored"
+  failure_mode=""
+>>>>>>> 258b748 (Stabilize test runner and add logs README)
   resp_trim="$(printf "%s" "$response" | tr -d '\r' | sed 's/[[:space:]]*$//')"
-  status="fail"
-  failure_mode="FORMAT_VIOLATION"
 
-  if [ "$rc" -ne 0 ]; then
+  if [[ $rc -ne 0 ]]; then
     status="fail"
     failure_mode="TOOL_EXECUTION_FAILURE"
-  elif [ "$resp_trim" = "READY" ]; then
-    status="pass"
-    failure_mode=""
+  elif [[ -n "$EXPECT_EXACT" ]]; then
+    if [[ "$resp_trim" == "$EXPECT_EXACT" ]]; then
+      status="pass"
+      failure_mode=""
+    else
+      status="fail"
+      failure_mode="FORMAT_VIOLATION"
+    fi
   fi
 
+<<<<<<< HEAD
   RESPONSE_FILE="$(mktemp)"
   printf "%s" "$response" > "$RESPONSE_FILE"
 
+=======
+  # Write response to a temp file so Python can safely read it without quoting issues
+  RESPONSE_FILE="$(mktemp)"
+  cleanup() { rm -f "$RESPONSE_FILE"; }
+  trap cleanup EXIT
+
+  printf "%s" "$response" > "$RESPONSE_FILE"
+
+  # Emit JSONL
+>>>>>>> 258b748 (Stabilize test runner and add logs README)
   python3 - <<PY >> "$JSONL_OUT"
 import json
 from pathlib import Path
@@ -145,6 +211,13 @@ record = {
 print(json.dumps(record, ensure_ascii=False))
 PY
 
+<<<<<<< HEAD
   rm -f "$RESPONSE_FILE"
+=======
+  # Remove temp file and reset trap for next loop
+  rm -f "$RESPONSE_FILE"
+  trap - EXIT
+
+>>>>>>> 258b748 (Stabilize test runner and add logs README)
   echo
 done
