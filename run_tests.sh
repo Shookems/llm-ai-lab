@@ -1,61 +1,37 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-<<<<<<< HEAD
-MODEL="${MODEL:-mistral:7b}"
-=======
 # -----------------------
 # Config (override via env)
 # -----------------------
 MODEL="${MODEL:-mistral:7b}"
 
-# Default BASE_DIR is $HOME/ai-lab, but you can override it:
-#   BASE_DIR="$PWD" MODEL="llama3.1:8b" ./run_tests.sh
->>>>>>> 258b748 (Stabilize test runner and add logs README)
 BASE_DIR="${BASE_DIR:-$HOME/ai-lab}"
 PROMPT_DIR="${PROMPT_DIR:-$BASE_DIR/prompts}"
 LOG_DIR="${LOG_DIR:-$BASE_DIR/logs}"
 
-<<<<<<< HEAD
-SCHEMA_VERSION="${SCHEMA_VERSION:-1.0}"
-PHASE="${PHASE:-phase1}"
-WORKFLOW_ID="${WORKFLOW_ID:-dry_run_v1}"
-WORKFLOW_VERSION="${WORKFLOW_VERSION:-1.0}"
-BATCH_ID="${BATCH_ID:-$(date -u +"%Y%m%dT%H%M%SZ")}"
-
-=======
-# Logging and metadata
 SCHEMA_VERSION="${SCHEMA_VERSION:-1.0}"
 PHASE="${PHASE:-phase1}"
 WORKFLOW_ID="${WORKFLOW_ID:-ad_hoc}"
 WORKFLOW_VERSION="${WORKFLOW_VERSION:-1.0}"
 BATCH_ID="${BATCH_ID:-$(date -u +"%Y%m%dT%H%M%SZ")}"
 
-# Evaluation controls (optional)
-# If you set EXPECT_EXACT="READY", then a run passes only if the trimmed output equals READY.
-# Otherwise, runs are marked "unscored" unless the command fails.
 EXPECT_EXACT="${EXPECT_EXACT:-}"
 
->>>>>>> 258b748 (Stabilize test runner and add logs README)
 timestamp_file() { date +"%Y-%m-%d_%H-%M-%S"; }
 timestamp_utc()  { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
 
 mkdir -p "$LOG_DIR"
 JSONL_OUT="$LOG_DIR/runs.jsonl"
 
-# Grab metadata best-effort
 git_commit="$(git -C "$BASE_DIR" rev-parse HEAD 2>/dev/null || echo "")"
 ollama_version="$(ollama --version 2>/dev/null || echo "")"
 
-# Safety: ensure prompt directory exists
 if [[ ! -d "$PROMPT_DIR" ]]; then
   echo "Prompt directory not found: $PROMPT_DIR"
-  echo "Set PROMPT_DIR or BASE_DIR correctly. Example:"
-  echo '  BASE_DIR="$PWD" MODEL="llama3.1:8b" ./run_tests.sh'
   exit 1
 fi
 
-# Expand prompts list safely
 shopt -s nullglob
 prompt_files=("$PROMPT_DIR"/*.txt)
 shopt -u nullglob
@@ -93,10 +69,6 @@ print(time.time_ns())
 PY
 )"
 
-<<<<<<< HEAD
-=======
-  # Run the model and capture stdout
->>>>>>> 258b748 (Stabilize test runner and add logs README)
   set +e
   response="$(ollama run "$MODEL" < "$prompt_file")"
   rc=$?
@@ -121,13 +93,8 @@ PY
     echo "=== END ==="
   } | tee -a "$out" >/dev/null
 
-<<<<<<< HEAD
-  # Evaluation rule for dry_run_v1: pass only if output trims to READY
-=======
-  # Evaluation
   status="unscored"
   failure_mode=""
->>>>>>> 258b748 (Stabilize test runner and add logs README)
   resp_trim="$(printf "%s" "$response" | tr -d '\r' | sed 's/[[:space:]]*$//')"
 
   if [[ $rc -ne 0 ]]; then
@@ -136,88 +103,61 @@ PY
   elif [[ -n "$EXPECT_EXACT" ]]; then
     if [[ "$resp_trim" == "$EXPECT_EXACT" ]]; then
       status="pass"
-      failure_mode=""
     else
       status="fail"
       failure_mode="FORMAT_VIOLATION"
     fi
   fi
 
-<<<<<<< HEAD
-  RESPONSE_FILE="$(mktemp)"
-  printf "%s" "$response" > "$RESPONSE_FILE"
-
-=======
-  # Write response to a temp file so Python can safely read it without quoting issues
-  RESPONSE_FILE="$(mktemp)"
-  cleanup() { rm -f "$RESPONSE_FILE"; }
-  trap cleanup EXIT
-
-  printf "%s" "$response" > "$RESPONSE_FILE"
-
-  # Emit JSONL
->>>>>>> 258b748 (Stabilize test runner and add logs README)
-  python3 - <<PY >> "$JSONL_OUT"
-import json
-from pathlib import Path
-
-response_text = Path("$RESPONSE_FILE").read_text(encoding="utf-8", errors="replace")
+  printf "%s" "$response" | python3 -c "
+import json, sys
+response_text = sys.stdin.read()
 
 record = {
-  "schema_version": "$SCHEMA_VERSION",
-  "run": {
-    "run_id": "$run_id",
-    "batch_id": "$BATCH_ID",
-    "timestamp_utc": "$(timestamp_utc)",
-    "workflow_id": "$WORKFLOW_ID",
-    "workflow_version": "$WORKFLOW_VERSION",
-    "phase": "$PHASE",
-    "git_commit": "$git_commit"
+  'schema_version': '$SCHEMA_VERSION',
+  'run': {
+    'run_id': '$run_id',
+    'batch_id': '$BATCH_ID',
+    'timestamp_utc': '$(timestamp_utc)',
+    'workflow_id': '$WORKFLOW_ID',
+    'workflow_version': '$WORKFLOW_VERSION',
+    'phase': '$PHASE',
+    'git_commit': '$git_commit'
   },
-  "environment": {
-    "host_os": "macOS",
-    "runtime": "ollama",
-    "runtime_version": "$ollama_version"
+  'environment': {
+    'host_os': 'macOS',
+    'runtime': 'ollama',
+    'runtime_version': '$ollama_version'
   },
-  "model": {
-    "provider": "ollama",
-    "tag": "$MODEL",
-    "params": {
-      "temperature": 0.0
-    }
+  'model': {
+    'provider': 'ollama',
+    'tag': '$MODEL',
+    'params': {'temperature': 0.0}
   },
-  "input": {
-    "prompt_file": "$prompt_file",
-    "prompt_sha256": "$prompt_sha"
+  'input': {
+    'prompt_file': '$prompt_file',
+    'prompt_sha256': '$prompt_sha'
   },
-  "output": {
-    "raw_response": response_text
+  'output': {
+    'raw_response': response_text
   },
-  "evaluation": {
-    "status": "$status",
-    "failure_mode": (None if "$failure_mode" == "" else "$failure_mode"),
-    "notes": ""
+  'evaluation': {
+    'status': '$status',
+    'failure_mode': None if '$failure_mode' == '' else '$failure_mode',
+    'notes': ''
   },
-  "metrics": {
-    "duration_ms": $duration_ms
+  'metrics': {
+    'duration_ms': $duration_ms
   },
-  "cost": {
-    "inference_cost_usd": 0.0,
-    "cloud_cost_usd": 0.0,
-    "total_cost_usd": 0.0
+  'cost': {
+    'inference_cost_usd': 0.0,
+    'cloud_cost_usd': 0.0,
+    'total_cost_usd': 0.0
   }
 }
 
 print(json.dumps(record, ensure_ascii=False))
-PY
+" >> "$JSONL_OUT"
 
-<<<<<<< HEAD
-  rm -f "$RESPONSE_FILE"
-=======
-  # Remove temp file and reset trap for next loop
-  rm -f "$RESPONSE_FILE"
-  trap - EXIT
-
->>>>>>> 258b748 (Stabilize test runner and add logs README)
   echo
 done
