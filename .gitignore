@@ -1,2 +1,6 @@
 logs/*
 !logs/example-*.log
+
+# Local logs
+logs/*.log
+logs/runs.jsonl
