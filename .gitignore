@@ -4,3 +4,6 @@ logs/*
 # Local logs
 logs/*.log
 logs/runs.jsonl
+
+# Local smoke prompts
+prompts_smoke/
